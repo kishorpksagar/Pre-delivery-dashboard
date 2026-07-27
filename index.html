@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shop · Pre-Delivery — Ticket Manifest</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root{
+    --paper:#F5F6F3;
+    --ink:#1B2430;
+    --ink-soft:#5B6472;
+    --line:#D9DCD6;
+    --navy:#2F3E63;
+    --teal:#1F8A73;
+    --amber:#D9932E;
+    --rose:#BE5A48;
+    --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    padding:28px 32px 60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+
+  /* Header — manifest stub styling */
+  .stub{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom:2px dashed var(--line);
+    padding-bottom:18px;
+    margin-bottom:26px;
+  }
+  .stub .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--navy);
+    margin:0 0 6px;
+  }
+  .stub h1{
+    font-family:'Sora',sans-serif;
+    font-size:26px;
+    margin:0;
+    letter-spacing:-.01em;
+  }
+  .stub .meta{
+    text-align:right;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    line-height:1.6;
+  }
+  .stub .meta b{color:var(--ink);}
+
+  /* Toggle */
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
+  .toggle{
+    display:inline-flex;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:3px;
+  }
+  .toggle button{
+    font-family:'Sora',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    border:none;
+    background:transparent;
+    color:var(--ink-soft);
+    padding:8px 18px;
+    border-radius:6px;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .toggle button.active{background:var(--navy);color:#fff;}
+  .toggle button:focus-visible{outline:2px solid var(--navy);outline-offset:2px;}
+
+  .asof{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);}
+
+  /* Date filter */
+  .filter-row{
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+    margin-bottom:18px;padding:12px 14px;
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+  }
+  .presets{display:flex;gap:6px;flex-wrap:wrap;}
+  .presets button{
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;
+    border:1px solid var(--line);background:transparent;color:var(--ink-soft);
+    padding:6px 12px;border-radius:6px;cursor:pointer;transition:.15s;
+  }
+  .presets button.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .presets button:hover:not(.active){border-color:var(--navy);color:var(--navy);}
+  .date-range{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .date-range label{font-size:11px;color:var(--ink-soft);display:flex;align-items:center;gap:6px;}
+  .date-range input[type=date]{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink);
+    border:1px solid var(--line);border-radius:6px;padding:5px 8px;background:var(--paper);
+  }
+  .date-range input[type=date]:focus-visible{outline:2px solid var(--navy);outline-offset:1px;}
+
+  /* KPI row */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+  .kpi{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px;
+    position:relative;
+    overflow:hidden;
+  }
+  .kpi::before{
+    content:'';
+    position:absolute;left:0;top:0;bottom:0;width:4px;
+    background:var(--accent,var(--navy));
+  }
+  .kpi .label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-bottom:8px;}
+  .kpi .value{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;color:var(--ink);}
+  .kpi .sub{font-size:12px;margin-top:6px;color:var(--ink-soft);}
+  .kpi .sub.up{color:var(--rose);}
+  .kpi .sub.down{color:var(--teal);}
+
+  /* Chart card */
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 22px 12px;
+    margin-bottom:22px;
+  }
+  .card h2{
+    font-family:'Sora',sans-serif;
+    font-size:15px;
+    margin:0 0 4px;
+  }
+  .card .cap{font-size:12px;color:var(--ink-soft);margin-bottom:14px;}
+  .chart-holder{position:relative;height:340px;}
+
+  /* Legend chips */
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:2px 0 14px;}
+  .chip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .dot{width:9px;height:9px;border-radius:2px;display:inline-block;}
+
+  /* Table */
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);}
+  th:first-child,td:first-child{text-align:left;}
+  th{font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:600;}
+  td{font-family:'IBM Plex Mono',monospace;}
+  tr:last-child td{border-bottom:none;}
+  tr.total td{font-weight:700;color:var(--navy);border-top:2px solid var(--line);}
+  td.name{font-family:'Inter',sans-serif;font-weight:500;color:var(--ink);}
+  .delta-up{color:var(--rose);}
+  .delta-down{color:var(--teal);}
+
+  footer{margin-top:6px;font-size:11px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+
+  @media (max-width:820px){
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    .stub{flex-direction:column;align-items:flex-start;gap:10px;}
+    .stub .meta{text-align:left;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="stub">
+    <div>
+      <p class="eyebrow">CS Manifest · Folder Level 1 = Shop</p>
+      <h1>Order Related — Pre Delivery</h1>
+    </div>
+    <div class="meta">
+      Source: <b>kapture.raw_ticket_reports</b><br>
+      Filter: <b>Chat · Agent-disposed</b><br>
+      Week basis: <b>Sun–Sat</b><br>
+      Data through: <b id="data-through">26 Jul 2026</b>
+    </div>
+    <div class="meta" id="loading-note" style="display:none;color:#BE5A48;">Loading data.json…</div>
+  </div>
+
+  <div class="toggle-row">
+    <div class="toggle" role="tablist">
+      <button id="btn-day" class="active" onclick="setView('day')">Day on Day</button>
+      <button id="btn-week" onclick="setView('week')">Week on Week</button>
+    </div>
+    <div class="asof" id="asof-note">Showing last 30 days · Disposition Level 3 ticket volume</div>
+  </div>
+
+  <div class="filter-row">
+    <div class="presets" id="preset-row">
+      <button data-days="7">7D</button>
+      <button data-days="14">14D</button>
+      <button data-days="30" class="active">30D</button>
+      <button data-days="90">90D</button>
+      <button data-days="all">All</button>
+    </div>
+    <div class="date-range">
+      <label>From <input type="date" id="date-from"></label>
+      <label>To <input type="date" id="date-to"></label>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpi-row"></div>
+
+  <div class="card">
+    <h2>Disposition Level 3 — count of tickets</h2>
+    <div class="cap" id="chart-cap">Stacked daily volume by Level 3 disposition, Shop &gt; Order Related – Pre Delivery (Chat, agent-disposed)</div>
+    <div class="legend" id="legend"></div>
+    <div class="chart-holder"><canvas id="mainChart"></canvas></div>
+  </div>
+
+  <div class="card" id="ratio-card">
+    <h2>Pre-Delivery Tickets / Orders (excl. Discard)</h2>
+    <div class="cap" id="ratio-cap">Ratio of Shop &gt; Pre-Delivery tickets (Chat, agent-disposed) to distinct orders excluding "Discard" status, denominator = trailing 14-day order count (date_created, IST)</div>
+    <div class="kpis" id="ratio-kpi-row" style="margin-bottom:16px;"></div>
+    <div class="chart-holder" style="height:260px;"><canvas id="ratioChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h2 id="table-title">Daily breakdown</h2>
+    <div class="cap" id="table-cap">Exact counts per Level 3 disposition, most recent first</div>
+    <table id="dataTable">
+      <thead id="table-head"></thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <footer>Definitions: Folder = Level 1 "Shop" &amp; Level 2 "Order Related - Pre Delivery" (from <i>dispositionfolderlevel</i> JSON), filtered to <i>sourcetype</i> = "Chat" and <i>disposeby</i> not blank/POP/POPclub (agent-disposed only, bot-handled excluded). Week starts Sunday, ends Saturday. Week of 26 Jul is week-to-date (1 day) — flagged as partial, not compared WoW. Denominator = <i>pop.app_order_line</i>, count(distinct <i>sub_order_number</i>) where <i>status</i> ≠ "Discard", dated by <i>date_created</i> shifted to IST (+5:30); ratio denominator is a trailing 14-day sum ending on each date/week shown.</footer>
+
+</div>
+
+<script>
+let CATS, COLORS, daily, weekly, dailyDelivered14d, weeklyDelivered14d, PARTIAL_WEEK, DATA_MIN, DATA_MAX, GENERATED_AT;
+
+async function loadData(){
+  const res = await fetch('data.json', {cache:'no-store'});
+  if(!res.ok) throw new Error('Failed to load data.json: '+res.status);
+  const d = await res.json();
+  CATS = d.CATS;
+  COLORS = d.COLORS;
+  daily = d.daily;
+  weekly = d.weekly;
+  dailyDelivered14d = d.dailyDelivered14d;
+  weeklyDelivered14d = d.weeklyDelivered14d;
+  PARTIAL_WEEK = d.PARTIAL_WEEK;
+  DATA_MIN = d.DATA_MIN;
+  DATA_MAX = d.DATA_MAX;
+  GENERATED_AT = d.generated_at;
+}
+
+function fmtDay(d){
+  const dt=new Date(d+"T00:00:00Z");
+  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+}
+function fmtWeek(d){
+  const start=new Date(d+"T00:00:00Z");
+  const end=new Date(start); end.setUTCDate(end.getUTCDate()+6);
+  const s=start.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+  const e=end.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+  return s+"–"+e;
+}
+function total(arr){return arr ? arr.reduce((a,b)=>a+b,0) : null;}
+function pctDelta(cur,prev){ if(prev==null) return null; return ((cur-prev)/prev)*100; }
+
+let chart;
+let ratioChart;
+let currentView='day';
+
+let filterFrom, filterTo;
+
+function addDaysStr(dateStr, n){
+  const d = new Date(dateStr+"T00:00:00Z");
+  d.setUTCDate(d.getUTCDate()+n);
+  return d.toISOString().slice(0,10);
+}
+function clamp(dateStr, min, max){
+  if(dateStr < min) return min;
+  if(dateStr > max) return max;
+  return dateStr;
+}
+
+function applyPreset(days){
+  filterTo = DATA_MAX;
+  filterFrom = days==='all' ? DATA_MIN : clamp(addDaysStr(DATA_MAX, -(Number(days)-1)), DATA_MIN, DATA_MAX);
+  document.getElementById('date-from').value = filterFrom;
+  document.getElementById('date-to').value = filterTo;
+  document.querySelectorAll('#preset-row button').forEach(b=>b.classList.toggle('active', b.dataset.days===String(days)));
+  render(currentView);
+}
+
+function onManualDateChange(){
+  let from = document.getElementById('date-from').value;
+  let to = document.getElementById('date-to').value;
+  from = clamp(from, DATA_MIN, DATA_MAX);
+  to = clamp(to, DATA_MIN, DATA_MAX);
+  if(from > to){ const t=from; from=to; to=t; }
+  filterFrom = from; filterTo = to;
+  document.getElementById('date-from').value = filterFrom;
+  document.getElementById('date-to').value = filterTo;
+  document.querySelectorAll('#preset-row button').forEach(b=>b.classList.remove('active'));
+  render(currentView);
+}
+
+function initDateFilter(){
+  document.getElementById('date-from').min = DATA_MIN;
+  document.getElementById('date-from').max = DATA_MAX;
+  document.getElementById('date-to').min = DATA_MIN;
+  document.getElementById('date-to').max = DATA_MAX;
+  document.getElementById('date-from').addEventListener('change', onManualDateChange);
+  document.getElementById('date-to').addEventListener('change', onManualDateChange);
+  document.querySelectorAll('#preset-row button').forEach(b=>{
+    b.addEventListener('click', ()=>applyPreset(b.dataset.days));
+  });
+  // default: last 30 days
+  filterTo = DATA_MAX;
+  filterFrom = clamp(addDaysStr(DATA_MAX, -29), DATA_MIN, DATA_MAX);
+  document.getElementById('date-from').value = filterFrom;
+  document.getElementById('date-to').value = filterTo;
+}
+
+function buildLegend(){
+  document.getElementById('legend').innerHTML = CATS.map(c=>
+    `<span class="chip"><span class="dot" style="background:${COLORS[c]}"></span>${c}</span>`
+  ).join('');
+}
+
+function fmtRangeLabel(){
+  return fmtDay(filterFrom)+' – '+fmtDay(filterTo);
+}
+
+function render(view){
+  currentView = view;
+  document.getElementById('btn-day').classList.toggle('active', view==='day');
+  document.getElementById('btn-week').classList.toggle('active', view==='week');
+
+  const dataset = view==='day' ? daily : weekly;
+  // For week view, include a week if its week_start falls within the selected range,
+  // or if the range only partially overlaps the week (week_start before 'to' and week_end after 'from')
+  const keys = Object.keys(dataset).filter(k=>{
+    if(view==='day') return k >= filterFrom && k <= filterTo;
+    const weekEnd = addDaysStr(k, 6);
+    return k <= filterTo && weekEnd >= filterFrom;
+  }).sort();
+  const labels = keys.map(view==='day'?fmtDay:fmtWeek);
+
+  document.getElementById('asof-note').textContent = view==='day'
+    ? `Showing ${fmtRangeLabel()} (${keys.length} day${keys.length===1?'':'s'}) · Disposition Level 3 ticket volume`
+    : `Showing ${fmtRangeLabel()} (${keys.length} week${keys.length===1?'':'s'}, Sun–Sat) · Disposition Level 3 ticket volume · latest week may be week-to-date`;
+
+  if(keys.length===0){
+    document.getElementById('kpi-row').innerHTML = `<div class="kpi"><div class="label">No data</div><div class="value" style="font-size:15px">No dates in range</div><div class="sub">Widen the date filter above</div></div>`;
+    if(chart) chart.destroy();
+    document.getElementById('table-head').innerHTML='';
+    document.getElementById('table-body').innerHTML='';
+    document.getElementById('ratio-card').style.display='none';
+    return;
+  }
+
+  document.getElementById('chart-cap').textContent = view==='day'
+    ? 'Stacked daily volume by Level 3 disposition, Shop > Order Related – Pre Delivery (Chat, agent-disposed)'
+    : 'Stacked weekly volume by Level 3 disposition, Shop > Order Related – Pre Delivery (Chat, agent-disposed)';
+  document.getElementById('table-title').textContent = view==='day' ? 'Daily breakdown' : 'Weekly breakdown';
+  document.getElementById('table-cap').textContent = view==='day'
+    ? 'Exact counts per Level 3 disposition, most recent first'
+    : 'Exact counts per Level 3 disposition, most recent first (latest row = week-to-date)';
+
+  // KPIs
+  const lastKey = keys[keys.length-1];
+  const prevKey = keys[keys.length-2];
+  const lastTotals = dataset[lastKey];
+  const prevTotals = dataset[prevKey];
+  const lastSum = total(lastTotals);
+  const prevSum = total(prevTotals);
+  const isPartial = view==='week' && lastKey===PARTIAL_WEEK;
+  const delta = isPartial ? null : pctDelta(lastSum, prevSum);
+
+  // top category over visible range
+  const sums = CATS.map((c,i)=>({c, v: keys.reduce((a,k)=>a+dataset[k][i],0)}));
+  sums.sort((a,b)=>b.v-a.v);
+  const top = sums[0];
+  const grand = sums.reduce((a,s)=>a+s.v,0);
+
+  const kpiRow = document.getElementById('kpi-row');
+  kpiRow.innerHTML = `
+    <div class="kpi" style="--accent:#2F3E63">
+      <div class="label">${view==='day'?'Latest day total':'Latest full week total'}</div>
+      <div class="value">${lastSum.toLocaleString()}</div>
+      <div class="sub">${view==='day'?fmtDay(lastKey):fmtWeek(lastKey)}${isPartial?' (week-to-date)':''}</div>
+    </div>
+    <div class="kpi" style="--accent:${delta==null?'#8a8f98':(delta>0?'#BE5A48':'#1F8A73')}">
+      <div class="label">${view==='day'?'Day-on-day change':'Week-on-week change'}</div>
+      <div class="value">${delta==null?'—':(delta>0?'+':'')+delta.toFixed(1)+'%'}</div>
+      <div class="sub ${delta>0?'up':'down'}">${delta==null? 'insufficient comparable data' : 'vs '+(view==='day'?fmtDay(prevKey):fmtWeek(prevKey))}</div>
+    </div>
+    <div class="kpi" style="--accent:${COLORS[top.c]}">
+      <div class="label">Top Level 3 (period)</div>
+      <div class="value" style="font-size:18px;line-height:1.3">${top.c}</div>
+      <div class="sub">${top.v.toLocaleString()} tickets · ${((top.v/grand)*100).toFixed(0)}% of volume</div>
+    </div>
+    <div class="kpi" style="--accent:#5B6472">
+      <div class="label">Total tickets (period shown)</div>
+      <div class="value">${grand.toLocaleString()}</div>
+      <div class="sub">${view==='day'? keys.length+' days · '+fmtDay(keys[0])+' – '+fmtDay(lastKey) : keys.length+' weeks · '+fmtWeek(keys[0])+' – '+fmtWeek(lastKey)}</div>
+    </div>
+  `;
+
+  // Chart
+  const rowTotals = keys.map(k=>total(dataset[k]));
+
+  const chartData = {
+    labels,
+    datasets: CATS.map((c,i)=>({
+      label:c,
+      data:keys.map(k=>dataset[k][i]),
+      backgroundColor:COLORS[c],
+      borderRadius:2,
+      stack:'s'
+    }))
+  };
+  if(chart) chart.destroy();
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type:'bar',
+    data:chartData,
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            footer:(items)=>{
+              const sum = items.reduce((a,it)=>a+it.parsed.y,0);
+              return 'Total: '+sum.toLocaleString();
+            }
+          }
+        },
+        datalabels:{display:false}
+      },
+      scales:{
+        x:{stacked:true, grid:{display:false}, ticks:{font:{family:'IBM Plex Mono',size:10.5}}},
+        y:{stacked:true, grid:{color:'#E7E5E0'}, ticks:{font:{family:'IBM Plex Mono',size:10.5}}, suggestedMax: Math.max(...rowTotals)*1.08}
+      }
+    }
+  });
+
+  // Table
+  const thead = document.getElementById('table-head');
+  thead.innerHTML = `<tr><th>${view==='day'?'Date':'Week (Sun–Sat)'}</th>${CATS.map(c=>`<th>${c}</th>`).join('')}<th>Total</th></tr>`;
+  const tbody = document.getElementById('table-body');
+  const revKeys = [...keys].reverse();
+  tbody.innerHTML = revKeys.map(k=>{
+    const row = dataset[k];
+    const label = view==='day'?fmtDay(k):fmtWeek(k)+(k===PARTIAL_WEEK?' *':'');
+    return `<tr><td class="name">${label}</td>${row.map(v=>`<td>${v.toLocaleString()}</td>`).join('')}<td style="font-weight:700">${total(row).toLocaleString()}</td></tr>`;
+  }).join('');
+
+  const ratioCard = document.getElementById('ratio-card');
+  if(view==='day'){
+    ratioCard.style.display = 'none';
+  } else {
+    ratioCard.style.display = '';
+    renderRatio(view, keys, labels, dataset);
+  }
+}
+
+function renderRatio(view, keys, labels, dataset){
+  const denomMap = view==='day' ? dailyDelivered14d : weeklyDelivered14d;
+  const ticketTotals = keys.map(k=>total(dataset[k]));
+  const denoms = keys.map(k=>denomMap[k]);
+  const ratios = keys.map((k,i)=> denoms[i] ? (ticketTotals[i]/denoms[i])*100 : null);
+
+  document.getElementById('ratio-cap').textContent = view==='day'
+    ? 'Daily Pre-Delivery ticket count ÷ trailing 14-day distinct order count (pop.app_order_line, status ≠ Discard, dated by date_created in IST), shown as %'
+    : 'Weekly Pre-Delivery ticket count ÷ trailing 14-day distinct order count (pop.app_order_line, status ≠ Discard, dated by date_created in IST), shown as %';
+
+  const lastIdx = keys.length-1;
+  const prevIdx = keys.length-2;
+  const isPartial = view==='week' && keys[lastIdx]===PARTIAL_WEEK;
+  const lastRatio = ratios[lastIdx];
+  const prevRatio = ratios[prevIdx];
+  const ratioDelta = (isPartial || prevRatio==null) ? null : lastRatio - prevRatio;
+
+  const kpiRow = document.getElementById('ratio-kpi-row');
+  kpiRow.innerHTML = `
+    <div class="kpi" style="--accent:#2F3E63">
+      <div class="label">${view==='day'?'Latest day ratio':'Latest full week ratio'}</div>
+      <div class="value">${lastRatio.toFixed(2)}%</div>
+      <div class="sub">${view==='day'?fmtDay(keys[lastIdx]):fmtWeek(keys[lastIdx])}${isPartial?' (week-to-date)':''}</div>
+    </div>
+    <div class="kpi" style="--accent:${ratioDelta==null?'#8a8f98':(ratioDelta>0?'#BE5A48':'#1F8A73')}">
+      <div class="label">${view==='day'?'Day-on-day (pp change)':'Week-on-week (pp change)'}</div>
+      <div class="value">${ratioDelta==null?'—':(ratioDelta>0?'+':'')+ratioDelta.toFixed(2)+' pp'}</div>
+      <div class="sub ${ratioDelta>0?'up':'down'}">${ratioDelta==null?'insufficient comparable data':'vs '+(view==='day'?fmtDay(keys[prevIdx]):fmtWeek(keys[prevIdx]))}</div>
+    </div>
+    <div class="kpi" style="--accent:#5B6472">
+      <div class="label">Trailing 14-day orders (excl. Discard)</div>
+      <div class="value" style="font-size:20px">${denoms[lastIdx].toLocaleString()}</div>
+      <div class="sub">denominator as of ${view==='day'?fmtDay(keys[lastIdx]):fmtWeek(keys[lastIdx])}</div>
+    </div>
+  `;
+
+  if(ratioChart) ratioChart.destroy();
+  const rctx = document.getElementById('ratioChart').getContext('2d');
+  ratioChart = new Chart(rctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'Pre-Delivery tickets / Orders excl. Discard (%)',
+        data:ratios,
+        borderColor:'#2F3E63',
+        backgroundColor:'rgba(47,62,99,0.08)',
+        pointBackgroundColor:'#2F3E63',
+        pointRadius:3,
+        borderWidth:2,
+        tension:.25,
+        fill:true,
+        spanGaps:true
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:(ctx)=> ctx.parsed.y.toFixed(2)+'%'}}
+      },
+      scales:{
+        x:{grid:{display:false}, ticks:{font:{family:'IBM Plex Mono',size:10.5}}},
+        y:{grid:{color:'#E7E5E0'}, ticks:{font:{family:'IBM Plex Mono',size:10.5}, callback:(v)=>v+'%'}}
+      }
+    }
+  });
+}
+
+function setView(v){ render(v); }
+buildLegend();
+document.getElementById('loading-note').style.display='';
+document.getElementById('loading-note').style.color='var(--ink-soft)';
+document.getElementById('loading-note').textContent='Loading data…';
+loadData().then(()=>{
+  document.getElementById('data-through').textContent = fmtDay(DATA_MAX)+' '+DATA_MAX.slice(0,4);
+  document.getElementById('loading-note').style.display='none';
+  initDateFilter();
+  render('day');
+}).catch(err=>{
+  document.getElementById('loading-note').style.display='';
+  document.getElementById('loading-note').style.color='#BE5A48';
+  document.getElementById('loading-note').textContent='Could not load data.json — '+err.message;
+  console.error(err);
+});
+</script>
+</body>
+</html>
